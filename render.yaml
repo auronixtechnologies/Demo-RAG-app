@@ -6,13 +6,17 @@
 #
 # Deploy: push this repo to GitHub, then Render Dashboard > New > Blueprint.
 # You will be prompted for GROQ_API_KEY and VITE_API_URL (both marked sync:false).
+#
+# Everything here is FREE tier — no card required to apply this blueprint.
+# The cost of that is stated under "What free costs you" at the bottom. Read it
+# before demoing: uploaded documents do not survive a spin-down.
 
 services:
   # ---------------------------------------------------------------- backend --
   - type: web
     name: rag-chat-api
     runtime: python
-    plan: starter # a persistent disk requires Starter or above; see note below
+    plan: free # no disk, spins down after 15 min idle — see the note at the bottom
     region: oregon
     branch: main
     rootDir: .
@@ -21,12 +25,10 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
 
-    disk:
-      # SQLite (app.db), the Chroma vector store and the ONNX embedding model
-      # all persist here. Without this disk they are wiped on every deploy.
-      name: rag-data
-      mountPath: /var/data
-      sizeGB: 1
+    # No `disk:` block — persistent disks are a paid-only feature, and adding
+    # one is what makes Render demand a card before applying this blueprint.
+    # SQLite, Chroma, uploads and the ONNX model therefore live in the
+    # container's ephemeral filesystem and are lost on restart.
 
     envVars:
       # Set this in the Render dashboard — never commit the key.
@@ -36,10 +38,9 @@ services:
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b
 
-      # Points SQLite, Chroma, uploads AND the ~80MB ONNX embedding model
-      # cache at the mounted disk, so none of it is re-downloaded or lost.
-      - key: DATA_DIR
-        value: /var/data
+      # DATA_DIR deliberately unset. config.py then falls back to
+      # backend/data/, inside the container. Setting it to /var/data with no
+      # disk mounted would still "work" but buys nothing.
 
       # onnxruntime (used for local embeddings) is happiest on 3.11.
       - key: PYTHON_VERSION
@@ -94,13 +95,35 @@ services:
         value: public, max-age=31536000, immutable
 
 # ---------------------------------------------------------------------------
-# Running on the FREE plan instead
+# What free costs you
 # ---------------------------------------------------------------------------
-# Render's free web services have no persistent disk. To deploy free:
-#   1. change `plan: starter` to `plan: free`
-#   2. delete the whole `disk:` block
-#   3. delete the DATA_DIR env var (data then lives in the container at
-#      backend/data)
-# Uploaded documents, embeddings and chat history are then LOST on every
-# deploy and on every spin-down after 15 minutes of inactivity. Fine for a
-# demo, not for anything you want to keep.
+# 1. NOTHING PERSISTS. Uploaded documents, their embeddings and the chat
+#    history are wiped on every deploy AND every spin-down. The app comes back
+#    with an empty corpus and answers "0 sources" until you re-upload.
+# 2. SPIN-DOWN AFTER 15 MIN IDLE. The next request cold-starts the container,
+#    which takes roughly 50s before it answers.
+# 3. THE EMBEDDING MODEL RE-DOWNLOADS. vectorstore.py caches Chroma's ~80MB
+#    ONNX MiniLM under the data dir, which is ephemeral here, so it is
+#    re-fetched after each cold start. The first upload or question after a
+#    spin-down pays that download on top of the 50s.
+# 4. 512MB RAM. chromadb + onnxruntime + FastAPI fit, but not with much room.
+#    A large PDF near the 20MB MAX_UPLOAD_MB limit can OOM the instance during
+#    embedding; the process restarts and, per (1), you lose the corpus.
+#
+# DEMOING THIS: open the site and upload your documents a few minutes before
+# you present, then keep a tab making requests. An idle gap mid-presentation
+# wipes the corpus and the recovery is a ~50s cold start plus a re-upload.
+#
+# ---------------------------------------------------------------------------
+# Going back to paid (removes every limitation above, ~$7.25/mo)
+# ---------------------------------------------------------------------------
+#   1. change `plan: free` back to `plan: starter`
+#   2. restore the disk block on the backend service:
+#        disk:
+#          name: rag-data
+#          mountPath: /var/data
+#          sizeGB: 1
+#   3. add the env var DATA_DIR=/var/data so SQLite, Chroma, uploads and the
+#      ONNX model cache all land on the mounted disk
+# Render will then ask for a card at apply time — that prompt is the disk and
+# the Starter instance, and it is unavoidable on paid resources.

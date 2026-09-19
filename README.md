@@ -154,8 +154,12 @@ event: error    data: {detail}        ← terminal, instead of done
 
 | Service | Type | Notes |
 |---|---|---|
-| `rag-chat-api` | Python web service | 1GB disk at `/var/data` for SQLite + Chroma |
-| `rag-chat-web` | Static site | React build, SPA rewrite |
+| `rag-chat-api` | Python web service (free) | SQLite + Chroma in the container — ephemeral |
+| `rag-chat-web` | Static site (free) | React build, SPA rewrite |
+
+Both are on free-tier resources, so applying the Blueprint does **not** ask for
+a card. Render demands payment details the moment a blueprint contains a paid
+resource — a persistent disk, or any plan above `free`.
 
 1. Push this repo to GitHub.
 2. Render Dashboard → **New → Blueprint** → pick the repo.
@@ -166,13 +170,21 @@ event: error    data: {detail}        ← terminal, instead of done
 4. After the first deploy, tighten `CORS_ORIGINS` on the API from `*` to the
    static site's URL.
 
-**On the disk:** SQLite needs a real filesystem that survives restarts, so
-the API service is on the Starter plan. To run free instead, follow the note
-at the bottom of [render.yaml](render.yaml) — but uploads, embeddings and
-chat history are then wiped on every deploy and every spin-down.
+**Nothing persists on free.** There is no disk, so SQLite, the Chroma vector
+store and uploaded files live in the container. They are wiped on every deploy
+and on every spin-down after 15 minutes of idle. The app comes back with an
+empty corpus and answers "0 sources" until you re-upload.
 
-**First request after a deploy is slow** (~10–20s) because the embedding
-model downloads. With the disk mounted, this happens only once.
+**Cold starts are slow.** After a spin-down the next request waits ~50s for the
+container, and then pays another ~10–20s because the ~80MB ONNX embedding model
+has to download again — its cache was ephemeral too.
+
+**512MB RAM.** chromadb plus onnxruntime fits, but a PDF near the 20MB
+`MAX_UPLOAD_MB` limit can OOM the instance while embedding, which restarts it
+and loses the corpus.
+
+If you need any of that fixed, the footer of [render.yaml](render.yaml) has the
+exact three edits to go back to Starter + a 1GB disk (~$7.25/mo).
 
 ---
 
