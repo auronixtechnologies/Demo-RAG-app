@@ -1,0 +1,106 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Two services:
+#   rag-chat-api  : FastAPI backend. SQLite + Chroma live on a persistent disk.
+#   rag-chat-web  : React build served as a static site.
+#
+# Deploy: push this repo to GitHub, then Render Dashboard > New > Blueprint.
+# You will be prompted for GROQ_API_KEY and VITE_API_URL (both marked sync:false).
+
+services:
+  # ---------------------------------------------------------------- backend --
+  - type: web
+    name: rag-chat-api
+    runtime: python
+    plan: starter # a persistent disk requires Starter or above; see note below
+    region: oregon
+    branch: main
+    rootDir: .
+    buildCommand: pip install --upgrade pip && pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    disk:
+      # SQLite (app.db), the Chroma vector store and the ONNX embedding model
+      # all persist here. Without this disk they are wiped on every deploy.
+      name: rag-data
+      mountPath: /var/data
+      sizeGB: 1
+
+    envVars:
+      # Set this in the Render dashboard — never commit the key.
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+
+      # Points SQLite, Chroma, uploads AND the ~80MB ONNX embedding model
+      # cache at the mounted disk, so none of it is re-downloaded or lost.
+      - key: DATA_DIR
+        value: /var/data
+
+      # onnxruntime (used for local embeddings) is happiest on 3.11.
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+      - key: CHUNK_SIZE
+        value: 1000
+      - key: CHUNK_OVERLAP
+        value: 150
+      - key: TOP_K
+        value: 4
+      # Retrieved chunks below this cosine similarity are discarded, so an
+      # off-topic question reports 0 sources instead of 4 irrelevant ones.
+      - key: MIN_SIMILARITY
+        value: 0.25
+      - key: MAX_UPLOAD_MB
+        value: 20
+
+      # Lock this down to the static site's URL once you know it, e.g.
+      # https://rag-chat-web.onrender.com
+      - key: CORS_ORIGINS
+        value: "*"
+
+  # --------------------------------------------------------------- frontend --
+  - type: web
+    name: rag-chat-web
+    runtime: static
+    branch: main
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    autoDeploy: true
+
+    envVars:
+      # Full https URL of the API service above, e.g.
+      # https://rag-chat-api.onrender.com
+      # Render prompts for this at deploy time.
+      - key: VITE_API_URL
+        sync: false
+      - key: NODE_VERSION
+        value: 20.11.1
+
+    routes:
+      # SPA fallback so client-side routing and refreshes work.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+
+# ---------------------------------------------------------------------------
+# Running on the FREE plan instead
+# ---------------------------------------------------------------------------
+# Render's free web services have no persistent disk. To deploy free:
+#   1. change `plan: starter` to `plan: free`
+#   2. delete the whole `disk:` block
+#   3. delete the DATA_DIR env var (data then lives in the container at
+#      backend/data)
+# Uploaded documents, embeddings and chat history are then LOST on every
+# deploy and on every spin-down after 15 minutes of inactivity. Fine for a
+# demo, not for anything you want to keep.

@@ -1,0 +1,890 @@
+:root {
+  /* Background */
+  --bg: #0b0d10;           /* near black  */
+  --bg-elev: #15191f;      /* card        */
+  --bg-elev-2: #1c2129;    /* inputs, raised chips */
+  --border: #262c35;
+
+  /* Text */
+  --text: #f5f7fa;         /* primary   */
+  --text-dim: #9ca3af;     /* secondary */
+  --text-faint: #6b7280;
+
+  /* Accents */
+  --accent: #b7ff3c;       /* electric lime — AI accent */
+  --accent-soft: #b7ff3c1f;
+  --accent-2: #38d9ff;     /* cyan — secondary accent  */
+  --accent-2-soft: #38d9ff1f;
+
+  /* Status */
+  --warning: #ffb84d;
+  --red: #ff5c5c;
+
+  /* Lime and cyan are bright: anything sitting on them needs dark ink. */
+  --on-accent: #0b0d10;
+
+  --radius: 10px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  /* The app manages its own scroll regions; the page itself never scrolls. */
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- layout ---------- */
+
+.app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 100%;
+  overflow: hidden;
+  transition: grid-template-columns 0.18s ease;
+}
+
+.app[data-sidebar='closed'] {
+  grid-template-columns: 0 1fr;
+}
+
+.sidebar {
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  /* The sidebar scrolls on its own and never moves with the transcript. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  height: 100%;
+  padding: 18px 16px;
+  gap: 22px;
+}
+
+.app[data-sidebar='closed'] .sidebar {
+  padding-left: 0;
+  padding-right: 0;
+  border-right: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.brand h1 {
+  font-size: 17px;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.brand p {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* min-height:0 lets .transcript scroll instead of stretching the page. */
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ---------- sidebar panels ---------- */
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.panel-head h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--text-faint);
+  margin: 0;
+  font-weight: 600;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  font-family: inherit;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.link-btn.danger {
+  color: var(--red);
+}
+
+.link-btn:disabled {
+  color: var(--text-faint);
+  cursor: default;
+  text-decoration: none;
+}
+
+.dropzone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 18px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dropzone:hover,
+.dropzone.dragging {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.dropzone.busy {
+  cursor: progress;
+  border-color: var(--accent);
+}
+
+.dropzone strong {
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
+.dropzone small {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.kb-summary {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin: 9px 0 4px;
+}
+
+.doc-list,
+.conv-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doc-item,
+.conv-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: var(--bg-elev-2);
+}
+
+.conv-item {
+  cursor: pointer;
+}
+
+.conv-item:hover {
+  background: #232834;
+}
+
+.conv-item.active {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.doc-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.doc-name,
+.conv-title {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-meta {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  padding: 0 3px;
+  border-radius: 4px;
+}
+
+.icon-btn:hover {
+  color: var(--red);
+}
+
+.empty-hint {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  padding: 4px 2px;
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-foot .muted {
+  color: var(--text-faint);
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.dot.ok {
+  background: var(--accent);
+}
+
+.dot.bad {
+  background: var(--red);
+}
+
+/* ---------- topbar + RAG switch ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+  flex-wrap: wrap;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Sidebar collapse toggle — always reachable, since it lives in the topbar
+   rather than inside the panel it hides. */
+.sidebar-toggle {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.sidebar-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.sidebar-toggle span {
+  display: block;
+  width: 15px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.track {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.18s, border-color 0.18s;
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.18s, background 0.18s;
+}
+
+.switch input:checked + .track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch input:checked + .track .thumb {
+  transform: translateX(18px);
+  background: var(--on-accent);
+}
+
+.switch-label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.switch-label strong {
+  font-size: 13px;
+}
+
+.switch-label small {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-faint);
+}
+
+.control select,
+.control input {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  font-family: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.control input {
+  width: 62px;
+}
+
+/* ---------- transcript ---------- */
+
+.transcript {
+  flex: 1 1 auto;
+  /* Without min-height:0 this flex item refuses to shrink below its content,
+     so the whole document scrolls and the sidebar scrolls away with it. */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.topbar,
+.composer {
+  flex: 0 0 auto;
+}
+
+.welcome {
+  margin: auto;
+  text-align: center;
+  max-width: 460px;
+  color: var(--text-dim);
+}
+
+.welcome h2 {
+  font-size: 20px;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.welcome p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.msg {
+  display: flex;
+  gap: 13px;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.msg-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.msg-assistant .msg-avatar {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.msg-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.msg-tags {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tag {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  letter-spacing: 0.3px;
+}
+
+.tag-rag {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.msg-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.markdown {
+  white-space: normal;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p {
+  margin: 0 0 10px;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+
+.markdown li {
+  margin-bottom: 3px;
+}
+
+.markdown code {
+  background: var(--bg-elev-2);
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.markdown pre {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown table {
+  border-collapse: collapse;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid var(--border);
+  padding: 5px 9px;
+  text-align: left;
+}
+
+.markdown blockquote {
+  border-left: 3px solid var(--border);
+  margin: 0 0 10px;
+  padding-left: 12px;
+  color: var(--text-dim);
+}
+
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.no-match {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--warning);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.no-match-text {
+  color: var(--text-dim);
+}
+
+.no-match .link-btn {
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 0;
+}
+
+.msg-error {
+  margin-top: 8px;
+  padding: 8px 11px;
+  border-radius: 7px;
+  background: #ff5c5c1a;
+  border: 1px solid #ff5c5c59;
+  color: var(--red);
+  font-size: 12.5px;
+}
+
+/* ---------- sources ---------- */
+
+.sources {
+  margin-top: 10px;
+}
+
+.sources-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11.5px;
+  padding: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.sources-toggle:hover {
+  color: var(--text);
+}
+
+.chev {
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 14px;
+}
+
+.chev[data-open='true'] {
+  transform: rotate(90deg);
+}
+
+.sources-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sources-list li {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.source-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.source-num {
+  color: var(--accent-2); /* cyan, so citations read distinctly from the AI lime */
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.source-file {
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.source-meta {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.source-text {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* ---------- composer ---------- */
+
+.composer {
+  display: flex;
+  gap: 10px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev);
+  align-items: flex-end;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  min-height: 44px;
+  max-height: 200px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  field-sizing: content;
+}
+
+.composer textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn {
+  border: none;
+  border-radius: var(--radius);
+  padding: 12px 22px;
+  font-size: 13.5px;
+  font-weight: 550;
+  cursor: pointer;
+  font-family: inherit;
+  height: 44px;
+}
+
+.btn.send {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.btn.send:disabled {
+  background: var(--bg-elev-2);
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.btn.stop {
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* ---------- toast ---------- */
+
+.toast {
+  position: fixed;
+  /* Sits above the composer — at bottom:22px it covered the Send button. */
+  bottom: 92px;
+  right: 22px;
+  padding: 11px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  max-width: 420px;
+  line-height: 1.45;
+  box-shadow: 0 8px 26px #000a;
+  z-index: 20;
+  animation: toast-in 0.18s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.toast.error {
+  background: #1e1113;
+  border: 1px solid #ff5c5c66;
+  color: var(--red);
+}
+
+.toast.success {
+  background: #141c10;
+  border: 1px solid #b7ff3c66;
+  color: var(--accent);
+}
+
+.toast.warning {
+  background: #1e1809;
+  border: 1px solid #ffb84d66;
+  color: var(--warning);
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 860px) {
+  /* Stack instead of side-by-side, but keep the two independent scroll
+     regions — the page as a whole still must not scroll. */
+  .app,
+  .app[data-sidebar='closed'] {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: 100%;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 40vh;
+    height: auto;
+  }
+
+  .app[data-sidebar='closed'] .sidebar {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .topbar {
+    padding: 12px 16px;
+  }
+
+  .transcript,
+  .composer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
